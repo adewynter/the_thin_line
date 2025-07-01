@@ -24,7 +24,19 @@ def construct_full_subset(dataset):
     return new_data
 
 
-def parse_and_collect_collection_apo(batch, originals, version, llm):
+def parse_and_collect_collection_apo(batch: list, originals: list, version: str, llm):
+    """
+    Slight variation on `parse_and_collect` for backwards compatibility with the APO code.
+    This one is for the actual testing, not the APO algorithm itself. I know, confusing. But only one
+    is exposed in the main code so it evens it out?
+    (I wrote this one before the other)
+    ---
+    Params:
+    batch: a list of prompts
+    originals: a list of integers for every index in the batch
+    version: the prompt version
+    llm: the LLMClient
+    """
 
     def fresh():
         response = {"Argument": None}
@@ -91,6 +103,16 @@ def parse_and_collect_collection_apo(batch, originals, version, llm):
 
 
 def parse_and_collect_apo(batch, originals, version, llm, debug=False):
+    """
+    Slight variation on `parse_and_collect` for backwards compatibility with the APO code.
+    This one is for the APO algorithm itself. 
+    ---
+    Params:
+    batch: a list of prompts
+    originals: a list of integers for every index in the batch
+    version: the prompt version
+    llm: the LLMClient
+    """
 
     def fresh():
         response = {"Argument": None}
@@ -160,9 +182,15 @@ def parse_and_collect_apo(batch, originals, version, llm, debug=False):
     return all_parsed_responses
 
 
-def get_predictions_for_version_apo(subset, version, llm, prompt_override=None):
+def get_predictions_for_version_apo(subset: list, version: str, llm, prompt_override=None):
     """
-    APO-only version
+    APO-only version of the loop calling prompts and getting responses.
+    ---
+    Params:
+    subset: a list of [{entry, scores}] for a given subset of the transcript 
+    version: the prompt version
+    llm: the LLMClient
+    prompt_override: whether we use a different system prompt: None or a str otherwise
     """
     rolling_history = ""
     batch = []
@@ -184,6 +212,16 @@ def get_predictions_for_version_apo(subset, version, llm, prompt_override=None):
 
 
 def get_predictions_for_version_collection_apo(subset, version, llm, prompt_override=None, developer=False):
+    """
+    The loop calling prompts and getting responses for testing (not APO algorithm itself)
+    ---
+    Params:
+    subset: a list of [{entry, scores}] for a given subset of the transcript 
+    version: the prompt version
+    llm: the LLMClient
+    prompt_override (None): whether we use a different system prompt: None or a str otherwise
+    developer (False): whether this uses the "developer" or the "system" key in the call. Defaults to False
+    """
     rolling_history = ""
     batch, originals = [], []
     squashed = []
@@ -223,10 +261,20 @@ def get_predictions_for_version_collection_apo(subset, version, llm, prompt_over
         return responses[-1]
 
 
-def apo(initial_prompt, dataset, version, llm, beam_width=4, search_depth=6, max_token_override=None, debug=False):
-	"""
-	max_token_verride: {"tkey": tkey, "max_tokens": max_tokens to override}
-	"""
+def apo(initial_prompt: str, dataset: list, version: str, llm, beam_width=4, search_depth=6, max_token_override: dict =None, debug: bool =False):
+    """
+    Main loop for the APO algorithm. All are the defaults from the original paper.
+    ---
+    Params:
+    initial_prompt: str: the initial prompt on which to run APO
+    dataset: list of entries compatible with `get_predictions_for_version_apo`
+    version: prompt version (i.e., one of "01234567")
+    llm: the LLMClient object
+    beam_width: ...the width of the beam? Defaults to 4
+    search_depth: int to determine the depth (loops) at which you will run APO.
+    max_token_override: dict of the form {"tkey": tkey, "max_tokens": max_tokens to override}. You need both because some LLMs use different token keys.
+    debug: debug.
+    """    
     b0 = [(initial_prompt, 0)]
     for i in range(search_depth):
         candidates = []
@@ -245,7 +293,19 @@ def apo(initial_prompt, dataset, version, llm, beam_width=4, search_depth=6, max
     return b0
 
 
-def expand(p_candidate, subset, version, llm, max_token_override=None, max_errors=4, debug=False):
+def expand(p_candidate: list, subset: list, version: str, llm, max_token_override=None, max_errors=4, debug=False):
+    """
+    Beam search proper.
+    ---
+    Params:
+    p_candidate: a list of candidate prompts
+    subset: the list of entries compatible with `get_predictions_for_version_apo` (i.e., the dataset)
+    version: the prompt version
+    llm: the LLMClient object
+    max_errors: the maximum number of mismatched datapoints allowable to run for the gradient version
+    max_token_override: dict of the form {"tkey": tkey, "max_tokens": max_tokens to override}. You need both because some LLMs use different token keys.
+    debug: gee I wonder what this does.
+    """
     if debug: print("Calling for predictions")
     scores, resps, entries = get_predictions_for_version_apo(subset, version, llm, prompt_override=p_candidate)
     errors = []
@@ -274,8 +334,23 @@ def expand(p_candidate, subset, version, llm, max_token_override=None, max_error
     return successors
 
 
-def gradient_and_edit(p_candidate, errors, version, llm, max_token_override=None, num_reasons=4, edits_per_gradient=1, num_mc_samples=2, debug=False):
-    # Defaults from the paper
+def gradient_and_edit(p_candidate: list, errors: list, version: str, llm, max_token_override=None, num_reasons=4, 
+                      edits_per_gradient=1, num_mc_samples=2, debug=False):
+    """
+    Run the pseudo gradient.
+    All params and prompts are the defaults from the paper.
+    ---
+    Params:
+    p_candidate: a list of candidate prompts
+    errors: a list of entries where the label was wrong compatible with `get_predictions_for_version_apo` (i.e., the dataset)
+    version: the prompt version
+    llm: the LLMClient object
+    max_token_override: dict of the form {"tkey": tkey, "max_tokens": max_tokens to override}. You need both because some LLMs use different token keys.
+    num_reasons: number of reasons required for the LLM to output as to why this was wrong
+    edits_per_gradient: number of edits done for the prompts that were wrong
+    num_mc_samples: the samples for the Monte-Carlo bit
+    debug: debug.
+    """
     def gradient_prompt(p, e, f): 
         resp = [{"role": "user", "content": f"I'm trying to write a zero-shot classifier prompt.\nMy current prompt is:\n\"{p}\"\nBut this prompt gets the following examples wrong:\n{e}\ngive {f} reasons why the prompt could have gotten these examples wrong.\nWrap each reason with <START> and <END>"}]
         return resp
@@ -331,7 +406,17 @@ def gradient_and_edit(p_candidate, errors, version, llm, max_token_override=None
     return candidates
 
 
-def select(candidates, dataset, version, llm, beam_size, B=12):
+def select(candidates: list, dataset: list, version: str, llm, beam_size: int, B=12):
+    """
+    Select candidates.
+    ---
+    Params:
+    candidates: a list of prompt candidates
+    dataset: a list of entries compatible with `get_predictions_for_version_apo` (i.e., the dataset)
+    version: the version for the prompt
+    llm: the LLMClient object
+    beam_size: the size of the beam
+    """
     # Paper states that B in 12-50 keeps it steady.
     # This is a very confusing and not-very-well-written algorithm.
     # We'll implement it verbatim from the paper though.

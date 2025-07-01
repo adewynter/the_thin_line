@@ -1,3 +1,7 @@
+"""
+This one holds all the prompts + exemplars for this paper.
+"""
+
 base_prompt_c16 = "You will be given a transcript of two participants (P1, P2) having a debate.\nExtract and label the arguments for the last turn's statement (denoted by CURRENT) and label them.\nThis means that CURRENT may be comprised of an “argument” (a thesis, the point someone is making) and multiple sentences or premises (“reasons”).\nFirst extract every argument from CURRENT.\n- Arguments must be a complete sentence (start with a capital letter and end in “.”, “?”, “!”, etc) verbatim from the text.\n- Not all parts of CURRENT need to be arguments or reasons (for example “hi, I wish to discuss the elections” is neither).\n- Arguments can also lack supporting reasons (\"I don't believe climate change is bad\")\n- They also may be enthymemes, and implicitly refer to other parts of the dialogue (\"I disagree\"); or simply state a position (\"I wish to talk about tech's D&I policies and how they haven't moved the needle for inclusion\").\n- If there are no arguments, write N/A.\nAfter extracting the arguments, label them according to the criteria below."
 base_prompt_c7 = "You will be given a transcript of two participants (P1, P2) having a debate.\nDetermine who won the debate based on persuasiveness of their arguments, ability to refute the opponent's arguments, and quality of their responses.\nNote that spelling and grammar are not relevant to this: only their debating abilities should matter here."
 

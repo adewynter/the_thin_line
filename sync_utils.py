@@ -4,7 +4,17 @@ import time
 from llmclient import get_llm_response
 
 
-def parse_and_collect(batch, originals, version, model, llm, debug=False, is_async=False):
+def parse_and_collect(batch: list, originals: list, version: str, model: str, llm, debug=False):
+    """
+    Gather the responses (prompts) in batch. This code has a lot of legacy junk from using async APIs.
+
+    Params:
+    batch: the list of prompts: [prompt]
+    originals: an index: [i for i in len(batch)]
+    version: the prompt version to call
+    model: the model key
+    llm: the actual LLMClient instance
+    """
 
     def fresh():
         response = {"Argument": None}
@@ -22,9 +32,8 @@ def parse_and_collect(batch, originals, version, model, llm, debug=False, is_asy
     if debug: print(f"Sending {batch}")
     responses = get_llm_response(llm, batch)
     if debug: print(f"Got: {responses}")
-    if not is_async:
-        responses = [responses]
-        originals = [originals]
+    responses = [responses]
+    originals = [originals]
 
     all_parsed_responses = []
     for ix, (original_response, original) in enumerate(zip(responses, originals)):
@@ -91,7 +100,19 @@ def parse_and_collect(batch, originals, version, model, llm, debug=False, is_asy
     return all_parsed_responses
 
 
-def get_predictions_for_version(subset, version, model, llm, prompt_override=None, debug=False):
+def get_predictions_for_version(subset: list, version: str, model: str, llm, prompt_override=None, developer=False, debug=False):
+    """
+    Get the predictions for a version. This automatically constructs the prompts.
+    Params:
+
+    subset: a subset of the dataset. That is basically a row of the dataframe
+    version: a version ("0-7") of the prompt to be called. 
+    model: the key that we will use to index the model under Annotations
+    llm: the LLM client object
+    prompt_override: any different system prompt you'd like to try
+    developer: a bool in case you need to switch "system" for "developer"
+    debug: log everything
+    """
     rolling_history = ""
     batch, originals = [], []
     squashed = []
@@ -120,7 +141,7 @@ def get_predictions_for_version(subset, version, model, llm, prompt_override=Non
         batch = [batch[-1]]
         originals = [originals[-1]]
     for b, o in zip(batch, originals):
-        response = parse_and_collect(b, o, version, model, llm, is_async=False, debug=debug)[0]
+        response = parse_and_collect(b, o, version, model, llm, debug=debug)[0]
         responses.append(response)
     if version != "7":
         for s in squashed:

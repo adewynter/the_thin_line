@@ -3,8 +3,10 @@ import pandas as pd
 import numpy as np
 
 
-def lookup_score(turn, playa, dataset):
-    """Get the scores for a specific turn/transcript"""
+def lookup_score(turn: int, playa: str, dataset: list):
+    """
+    Get the scores for a specific turn/transcript
+    """
     scores = {f"C-{i}": "N/A" for i in range(7)}
     for e in dataset["Annotations"]["AggregateHuman"]["TranscriptScores"]:
         if e["Turn"] == turn:
@@ -26,7 +28,10 @@ def lookup_score(turn, playa, dataset):
     return _scores
 
 
-def normalise(arr, criterion):
+def normalise(arr: list, criterion: str):
+    """
+    Normalise scores for plotting. Criterion should be one of "C-{0-6}" or "Winner"
+    """
     if criterion not in ["C-6", "Winner"]:
         new_arr = [x if not pd.isnull(x) else -1 for x in arr]
     elif criterion == "C-6":
@@ -41,7 +46,7 @@ def normalise(arr, criterion):
     return new_arr
 
 
-def compute_weighted_kappa(column1, column2, labels, criterion):
+def compute_weighted_kappa(column1: list, column2: list, labels: list, criterion: str):
     """
     Compute the weighted Cohen's kappa for two arrays corresponding
     to a given metric
